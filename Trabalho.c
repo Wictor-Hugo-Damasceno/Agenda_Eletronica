@@ -3,7 +3,7 @@
 #include <raylib.h>
 // Para rodar abra o terminal e digite mingw32-make run
 // so tem comentario até a linha 62, pois ja com base noque ja vismo da para entender e caso veja algm função com drawn é do raylib, recomendo modificarem
-// alguns parametros das funçãos do ray para compreender totalemnte
+
 
 bool ClickBotton(int x, int y, int larg, int alt, const char* texto) {
     // Pense em X e Y no plano carteseano soq no pc, larg = largura do botão, alt = Altura do botão, texto = texto que sera impresso dentro do botão
