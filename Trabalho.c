@@ -5,7 +5,7 @@
 // so tem comentario até a linha 62, pois ja com base noque ja vismo da para entender e caso veja algm função com drawn é do raylib, recomendo modificarem
 
 
-bool ClickBotton(int x, int y, int larg, int alt, const char* texto) {
+bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
     // Pense em X e Y no plano carteseano soq no pc, larg = largura do botão, alt = Altura do botão, texto = texto que sera impresso dentro do botão
     Rectangle rec = { (float)x, (float)y, (float)larg, (float)alt };
     Vector2 mousePos = GetMousePosition();
@@ -51,7 +51,7 @@ int main() {
             case MENU:
                 DrawText("SISTEMA DE AGENDA", 260, 40, 30, DARKGRAY);
                 
-                if (ClickBotton(250, 100, 300, 45, "1. ADICIONAR")) {
+                if (ClickButton(250, 100, 300, 45, "1. ADICIONAR")) {
                     //A função que criei em pratica, caso ela seja apertada vai retornar true e tudo que esta no if vai acontecer
                     telaAtual = ADICIONAR;
                     inputEvento[0] = '\0';
@@ -61,7 +61,7 @@ int main() {
                     foco = 0;
                 }
 
-                if (ClickBotton(250, 160, 300, 45, "2. Meus Eventos")) {
+                if (ClickButton(250, 160, 300, 45, "2. Meus Eventos")) {
                     // um sistema de busca primitivo ainda n busca uma data exata vou mudar isso
                     telaAtual = BUSCAR;
                     FILE *ler = fopen(caminho, "r");
@@ -77,7 +77,7 @@ int main() {
                     }
                 }
 
-                if (ClickBotton(250, 220, 300, 45, "3. EXCLUIR")) {
+                if (ClickButton(250, 220, 300, 45, "3. EXCLUIR")) {
                     telaAtual = EXCLUIR;
                     dataExcluir[0] = '\0';
                     contadorDataExcluir = 0;
