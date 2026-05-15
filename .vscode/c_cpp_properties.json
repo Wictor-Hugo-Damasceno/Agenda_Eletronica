@@ -6,8 +6,14 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/raylib/include"
             ],
-            "compilerPath": "gcc",
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "${workspaceFolder}/compiler/bin/gcc.exe",
             "cStandard": "c11",
+            "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"
         }
     ],
