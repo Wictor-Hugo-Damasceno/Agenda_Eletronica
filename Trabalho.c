@@ -1,19 +1,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <raylib.h>
-// Para rodar abra o terminal e digite mingw32-make run
-// so tem comentario até a linha 62, pois ja com base noque ja vismo da para entender e caso veja algm função com drawn é do raylib, recomendo modificarem
 
 
 bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
-    // Pense em X e Y no plano carteseano soq no pc, larg = largura do botão, alt = Altura do botão, texto = texto que sera impresso dentro do botão
+    
     Rectangle rec = { (float)x, (float)y, (float)larg, (float)alt };
     Vector2 mousePos = GetMousePosition();
     bool colidindo = CheckCollisionPointRec(mousePos, rec);
     
     DrawRectangleRec(rec, colidindo ? LIGHTGRAY : GRAY);
     DrawRectangleLinesEx(rec, 2, DARKGRAY);
-    //isso detecta onde o mouse esta caso ele nao esteja em cima fica cinza(gray) caso esteja fica preto
+    
     DrawText(texto, x + (larg/2 - MeasureText(texto, 20)/2), y + (alt/2 - 10), 20, BLACK);
     
     return colidindo && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
@@ -29,7 +27,7 @@ int main() {
     SetTargetFPS(60);
 
     TelaEstado telaAtual = MENU;
-    char caminho[] = "data_agenda.txt";//local da data base
+    char caminho[] = "data_agenda.txt";
     char inputEvento[50] = "";
     int contaLetras = 0;
     char dataDigitada[12] = ""; 
@@ -52,7 +50,6 @@ int main() {
                 DrawText("SISTEMA DE AGENDA", 260, 40, 30, DARKGRAY);
                 
                 if (ClickButton(250, 100, 300, 45, "1. ADICIONAR")) {
-                    //A função que criei em pratica, caso ela seja apertada vai retornar true e tudo que esta no if vai acontecer
                     telaAtual = ADICIONAR;
                     inputEvento[0] = '\0';
                     contaLetras = 0;
@@ -62,7 +59,6 @@ int main() {
                 }
 
                 if (ClickButton(250, 160, 300, 45, "2. Meus Eventos")) {
-                    // um sistema de busca primitivo ainda n busca uma data exata vou mudar isso
                     telaAtual = BUSCAR;
                     FILE *ler = fopen(caminho, "r");
                     if (ler) {
