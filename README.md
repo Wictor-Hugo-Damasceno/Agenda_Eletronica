@@ -35,8 +35,10 @@ A aplicação é dividida em estados lógicos:
 
 ### Execução
 *   Certifique-se de que a pasta compiler e a pasta raylib estão na raiz do projeto.
-*   Localize o arquivo RODAR.bat na pasta raiz.
-*   Clique duas vezes no arquivo RODAR.bat.
+*   Digite no terminal
+ ```
+start RODAR.BAT
+```
 *   O script configurará o ambiente local automaticamente, compilará o código-fonte e executará o programa.
 
 ### Dependencias
