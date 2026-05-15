@@ -1,15 +1,15 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -Iraylib/include
-LDFLAGS = -Lraylib/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static-libgcc
+CC = dependencias\compiler\bin\gcc.exe
+CFLAGS = -Wall -Wextra -std=c11 -I. -Idependencias/raylib/include
+LDFLAGS = -Ldependencias/raylib/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static-libgcc
 
 SRC = Trabalho.c
-TARGET = agenda
+TARGET = agenda.exe
 
 $(TARGET): $(SRC)
 	$(CC) $(SRC) -o $(TARGET) $(CFLAGS) $(LDFLAGS)
 
 clean:
-	del $(TARGET).exe
+	if exist $(TARGET) del $(TARGET)
 
 run: $(TARGET)
-	./$(TARGET).exe
+	./$(TARGET)
