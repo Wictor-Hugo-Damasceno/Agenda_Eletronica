@@ -33,6 +33,12 @@ A aplicação é dividida em estados lógicos:
 *   Compilador GCC (ou compatível).
 *   Biblioteca Raylib instalada e vinculada ao projeto.
 
+### Execução
+*   Certifique-se de que a pasta compiler e a pasta raylib estão na raiz do projeto.
+*   Localize o arquivo RODAR.bat na pasta raiz.
+*   Clique duas vezes no arquivo RODAR.bat.
+*   O script configurará o ambiente local automaticamente, compilará o código-fonte e executará o programa.
+
 ### Comando para Compilação (Linux/macOS)
 ```bash
 gcc main.c -o agenda -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
