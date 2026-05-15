@@ -2,9 +2,7 @@
 #include <string.h>
 #include <raylib.h>
 
-
 bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
-    
     Rectangle rec = { (float)x, (float)y, (float)larg, (float)alt };
     Vector2 mousePos = GetMousePosition();
     bool colidindo = CheckCollisionPointRec(mousePos, rec);
@@ -12,15 +10,15 @@ bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
     DrawRectangleRec(rec, colidindo ? LIGHTGRAY : GRAY);
     DrawRectangleLinesEx(rec, 2, DARKGRAY);
     
-    DrawText(texto, x + (larg/2 - MeasureText(texto, 20)/2), y + (alt/2 - 10), 20, BLACK);
+    int textoLargura = MeasureText(texto, 20);
+    DrawText(texto, x + (larg/2 - textoLargura/2), y + (alt/2 - 10), 20, BLACK);
     
     return colidindo && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 }
 
-typedef enum { MENU, ADICIONAR, BUSCAR, EXCLUIR } TelaEstado;
+typedef enum { MENU, ADICIONAR, BUSCAR, EXCLUIR, AVISOS } TelaEstado;
 
 int main() {
-    
     const int larguraTela = 800;
     const int alturaTela = 500;
     InitWindow(larguraTela, alturaTela, "Agenda Eletronica - Trabalho");
@@ -33,14 +31,12 @@ int main() {
     char dataDigitada[12] = ""; 
     int contadorCaracteres = 0; 
     int foco = 0;
-    bool campoAtivo = false;
     char resultadoBusca[512] = "Nenhum evento carregado.";
     char dataExcluir[12] = "";
     int contadorDataExcluir = 0;
     int focoExcluir = 0;
     char mensagemExcluir[100] = "";
 
-    
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -64,7 +60,7 @@ int main() {
                     if (ler) {
                         char linha[150];
                         resultadoBusca[0] = '\0';
-                        while (fgets(linha, sizeof(linha), ler) && strlen(resultadoBusca) < 400) {
+                        while (fgets(linha, sizeof(linha), ler) && strlen(resultadoBusca) < 450) {
                             strcat(resultadoBusca, linha);
                         }
                         fclose(ler);
@@ -80,9 +76,15 @@ int main() {
                     focoExcluir = 0;
                     mensagemExcluir[0] = '\0';
                 }
+
+                if (ClickButton(250, 280, 300, 45, "4. AVISOS")) {
+                    telaAtual = AVISOS;
+                }
                 break;
 
             case ADICIONAR:
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
+
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     Vector2 mouse = GetMousePosition();
                     if (CheckCollisionPointRec(mouse, (Rectangle){20, 60, 750, 50})) foco = 1;
@@ -100,9 +102,7 @@ int main() {
                         }
                         tecla = GetCharPressed();
                     }
-                    if (IsKeyPressed(KEY_BACKSPACE) && contaLetras > 0) {
-                        inputEvento[--contaLetras] = '\0';
-                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && contaLetras > 0) inputEvento[--contaLetras] = '\0';
                 } 
                 else if (foco == 2) {
                     while (tecla > 0) {
@@ -129,12 +129,9 @@ int main() {
                     if (agenda) {
                         fprintf(agenda, "Data: %s - %s\n", dataDigitada, inputEvento);
                         fclose(agenda);
-                        inputEvento[0] = '\0'; 
-                        contaLetras = 0;
-                        dataDigitada[0] = '\0'; 
-                        contadorCaracteres = 0;
+                        inputEvento[0] = '\0'; contaLetras = 0;
+                        dataDigitada[0] = '\0'; contadorCaracteres = 0;
                         foco = 0;
-                        telaAtual = MENU;
                     }
                 }
 
@@ -147,7 +144,7 @@ int main() {
                 DrawText(dataDigitada[0] == '\0' && foco != 2 ? "Clique aqui para a Data (dd/mm/aaaa)" : dataDigitada, 35, 155, 22, DARKGREEN);
                 if (foco == 2) DrawText("|", 35 + MeasureText(dataDigitada, 22), 155, 22, GREEN);
 
-                DrawText("ESC para voltar | ENTER para salvar", 20, 220, 20, GRAY);
+                DrawText("ENTER para salvar", 20, 220, 20, GRAY);
                 if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
                 break;
 
@@ -155,9 +152,11 @@ int main() {
                 DrawText("MODO: VISUALIZAR", 20, 20, 25, DARKBLUE);
                 DrawText(resultadoBusca, 30, 80, 18, BLACK);
                 if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
+                if (ClickButton(280, 420, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
                 break;
 
             case EXCLUIR:
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
                 DrawText("MODO: EXCLUIR", 20, 20, 25, RED);
                 
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -166,19 +165,19 @@ int main() {
                     else focoExcluir = 0;
                 }
 
-                tecla = GetCharPressed();
+                int teclaEx = GetCharPressed();
                 if (focoExcluir == 1) {
-                    while (tecla > 0) {
-                        if ((tecla >= '0' && tecla <= '9') && (contadorDataExcluir < 10)) {
+                    while (teclaEx > 0) {
+                        if ((teclaEx >= '0' && teclaEx <= '9') && (contadorDataExcluir < 10)) {
                             if (contadorDataExcluir == 2 || contadorDataExcluir == 5) {
                                 dataExcluir[contadorDataExcluir] = '/';
                                 contadorDataExcluir++;
                             }
-                            dataExcluir[contadorDataExcluir] = (char)tecla;
+                            dataExcluir[contadorDataExcluir] = (char)teclaEx;
                             dataExcluir[contadorDataExcluir + 1] = '\0';
                             contadorDataExcluir++;
                         }
-                        tecla = GetCharPressed();
+                        teclaEx = GetCharPressed();
                     }
                     if (IsKeyPressed(KEY_BACKSPACE) && contadorDataExcluir > 0) {
                         contadorDataExcluir--;
@@ -190,50 +189,29 @@ int main() {
                 if (IsKeyPressed(KEY_ENTER) && contadorDataExcluir == 10) {
                     FILE *ler = fopen(caminho, "r");
                     if (ler) {
-                        char temp[] = "temp.txt";
-                        FILE *tempFile = fopen(temp, "w");
+                        FILE *tempFile = fopen("temp.txt", "w");
                         char linha[150];
                         int excluido = 0;
-                        
                         while (fgets(linha, sizeof(linha), ler)) {
-                            if (strncmp(linha, "Data: ", 6) == 0 && strstr(linha, dataExcluir)) {
-                                excluido++;
-                            } else {
-                                fputs(linha, tempFile);
-                            }
+                            if (strncmp(linha, "Data: ", 6) == 0 && strstr(linha, dataExcluir)) excluido++;
+                            else fputs(linha, tempFile);
                         }
-                        
-                        fclose(ler);
-                        fclose(tempFile);
-                        remove(caminho);
-                        rename(temp, caminho);
-                        
-                        if (excluido > 0) {
-                            sprintf(mensagemExcluir, "Excluidos %d eventos da data %s", excluido, dataExcluir);
-                        } else {
-                            sprintf(mensagemExcluir, "Nenhum evento encontrado para %s", dataExcluir);
-                        }
-                        dataExcluir[0] = '\0';
-                        contadorDataExcluir = 0;
-                        focoExcluir = 0;
-                        telaAtual = MENU;
-                    } else {
-                        strcpy(mensagemExcluir, "Arquivo nao encontrado");
+                        fclose(ler); fclose(tempFile);
+                        remove(caminho); rename("temp.txt", caminho);
+                        sprintf(mensagemExcluir, excluido > 0 ? "Excluidos %d eventos!" : "Nada encontrado.", excluido);
+                        dataExcluir[0] = '\0'; contadorDataExcluir = 0;
                     }
                 }
-
+                
                 DrawRectangleLinesEx((Rectangle){20, 80, 750, 50}, (focoExcluir == 1 ? 3 : 1), ORANGE);
-                DrawText(dataExcluir[0] == '\0' ? "Digite a data para excluir (dd/mm/aaaa)" : dataExcluir, 35, 95, 22, DARKPURPLE);
-                if (focoExcluir == 1) DrawText("|", 35 + MeasureText(dataExcluir, 22), 95, 22, ORANGE);
+                DrawText(dataExcluir[0] == '\0' ? "Data para excluir (dd/mm/aaaa)" : dataExcluir, 35, 95, 22, DARKPURPLE);
+                DrawText(mensagemExcluir, 20, 200, 18, DARKGREEN);
+                if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
+                break;
 
-                DrawText("ENTER para excluir | ESC para voltar", 20, 160, 20, GRAY);
-                if (mensagemExcluir[0] != '\0') {
-                    DrawText(mensagemExcluir, 20, 200, 18, DARKGREEN);
-                }
-                if (IsKeyPressed(KEY_ESCAPE)) {
-                    telaAtual = MENU;
-                    mensagemExcluir[0] = '\0';
-                }
+            case AVISOS:
+                DrawText("AVISOS E LEMBRETES", 20, 20, 25, DARKBLUE);
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
                 break;
         }
         EndDrawing();
