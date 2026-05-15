@@ -40,7 +40,7 @@ A aplicação é dividida em estados lógicos:
 *   O script configurará o ambiente local automaticamente, compilará o código-fonte e executará o programa.
 
 ### Dependencias
-*  https://github.com/Wictor-Hugo-Damasceno/Dependencias.git
+*  https://github.com/Wictor-Hugo-Damasceno/dependencias.git
 
 ### Comando para Compilação (Linux/macOS)
 ```bash
