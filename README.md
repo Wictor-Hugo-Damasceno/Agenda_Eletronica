@@ -39,6 +39,9 @@ A aplicação é dividida em estados lógicos:
 *   Clique duas vezes no arquivo RODAR.bat.
 *   O script configurará o ambiente local automaticamente, compilará o código-fonte e executará o programa.
 
+### Dependencias
+*  https://github.com/Wictor-Hugo-Damasceno/Dependencias.git
+
 ### Comando para Compilação (Linux/macOS)
 ```bash
 gcc main.c -o agenda -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
