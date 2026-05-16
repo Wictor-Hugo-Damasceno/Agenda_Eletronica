@@ -31,7 +31,7 @@ int main() {
     char dataDigitada[12] = ""; 
     char horaDigitada[6] = "";
     int contadorCaracteres = 0; 
-    int contadorHora = 0; // Separado para não conflitar com a data
+    int contadorHora = 0; 
     int foco = 0;
     char resultadoBusca[512] = "Nenhum evento carregado.";
     char dataExcluir[12] = "";
@@ -148,7 +148,6 @@ int main() {
                     }
                 }
 
-                // Só salva se o evento tiver texto, data completa (10 chars) e hora completa (5 chars)
                 if (IsKeyPressed(KEY_ENTER) && contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
                     FILE *agenda = fopen(caminho, "a");
                     if (agenda) {
@@ -163,17 +162,14 @@ int main() {
 
                 DrawText("MODO: ADICIONAR", 20, 20, 25, MAROON);
                 
-                // Campo 1: Evento
                 DrawRectangleLinesEx((Rectangle){20, 60, 750, 50}, (foco == 1 ? 3 : 1), BLUE);
                 DrawText(inputEvento[0] == '\0' && foco != 1 ? "Digite o nome do evento..." : inputEvento, 35, 75, 22, DARKBLUE);
                 if (foco == 1) DrawText("|", 35 + MeasureText(inputEvento, 22), 75, 22, BLUE);
 
-                // Campo 2: Data
                 DrawRectangleLinesEx((Rectangle){20, 140, 750, 50}, (foco == 2 ? 3 : 1), GREEN);
                 DrawText(dataDigitada[0] == '\0' && foco != 2 ? "Clique aqui para a Data (dd/mm/aaaa)" : dataDigitada, 35, 155, 22, DARKGREEN);
                 if (foco == 2) DrawText("|", 35 + MeasureText(dataDigitada, 22), 155, 22, GREEN);
 
-                // Campo 3: Hora
                 DrawRectangleLinesEx((Rectangle){20, 220, 750, 50}, (foco == 3 ? 3 : 1), ORANGE);
                 DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
