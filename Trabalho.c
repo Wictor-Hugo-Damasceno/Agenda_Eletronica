@@ -29,7 +29,9 @@ int main() {
     char inputEvento[50] = "";
     int contaLetras = 0;
     char dataDigitada[12] = ""; 
+    char horaDigitada[6] = "";
     int contadorCaracteres = 0; 
+    int contadorHora = 0; // Separado para não conflitar com a data
     int foco = 0;
     char resultadoBusca[512] = "Nenhum evento carregado.";
     char dataExcluir[12] = "";
@@ -51,6 +53,8 @@ int main() {
                     contaLetras = 0;
                     dataDigitada[0] = '\0';
                     contadorCaracteres = 0;
+                    horaDigitada[0] = '\0';
+                    contadorHora = 0;
                     foco = 0;
                 }
 
@@ -89,6 +93,7 @@ int main() {
                     Vector2 mouse = GetMousePosition();
                     if (CheckCollisionPointRec(mouse, (Rectangle){20, 60, 750, 50})) foco = 1;
                     else if (CheckCollisionPointRec(mouse, (Rectangle){20, 140, 750, 50})) foco = 2;
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){20, 220, 750, 50})) foco = 3;
                     else foco = 0;
                 }
 
@@ -123,28 +128,57 @@ int main() {
                         dataDigitada[contadorCaracteres] = '\0';
                     }
                 }
+                else if (foco == 3) {
+                    while (tecla > 0) {
+                        if ((tecla >= '0' && tecla <= '9') && (contadorHora < 5)) {
+                            if (contadorHora == 2) {
+                                horaDigitada[contadorHora] = ':';
+                                contadorHora++;
+                            }
+                            horaDigitada[contadorHora] = (char)tecla;
+                            horaDigitada[contadorHora + 1] = '\0';
+                            contadorHora++;
+                        }
+                        tecla = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && contadorHora > 0) {
+                        contadorHora--;
+                        if (horaDigitada[contadorHora] == ':') contadorHora--;
+                        horaDigitada[contadorHora] = '\0';
+                    }
+                }
 
-                if (IsKeyPressed(KEY_ENTER) && contaLetras > 0 && contadorCaracteres == 10) {
+                // Só salva se o evento tiver texto, data completa (10 chars) e hora completa (5 chars)
+                if (IsKeyPressed(KEY_ENTER) && contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
                     FILE *agenda = fopen(caminho, "a");
                     if (agenda) {
-                        fprintf(agenda, "Data: %s - %s\n", dataDigitada, inputEvento);
+                        fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
                         fclose(agenda);
                         inputEvento[0] = '\0'; contaLetras = 0;
                         dataDigitada[0] = '\0'; contadorCaracteres = 0;
+                        horaDigitada[0] = '\0'; contadorHora = 0;
                         foco = 0;
                     }
                 }
 
                 DrawText("MODO: ADICIONAR", 20, 20, 25, MAROON);
+                
+                // Campo 1: Evento
                 DrawRectangleLinesEx((Rectangle){20, 60, 750, 50}, (foco == 1 ? 3 : 1), BLUE);
-                DrawText(inputEvento, 35, 75, 22, DARKBLUE);
+                DrawText(inputEvento[0] == '\0' && foco != 1 ? "Digite o nome do evento..." : inputEvento, 35, 75, 22, DARKBLUE);
                 if (foco == 1) DrawText("|", 35 + MeasureText(inputEvento, 22), 75, 22, BLUE);
 
+                // Campo 2: Data
                 DrawRectangleLinesEx((Rectangle){20, 140, 750, 50}, (foco == 2 ? 3 : 1), GREEN);
                 DrawText(dataDigitada[0] == '\0' && foco != 2 ? "Clique aqui para a Data (dd/mm/aaaa)" : dataDigitada, 35, 155, 22, DARKGREEN);
                 if (foco == 2) DrawText("|", 35 + MeasureText(dataDigitada, 22), 155, 22, GREEN);
 
-                DrawText("ENTER para salvar", 20, 220, 20, GRAY);
+                // Campo 3: Hora
+                DrawRectangleLinesEx((Rectangle){20, 220, 750, 50}, (foco == 3 ? 3 : 1), ORANGE);
+                DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
+                if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
+
+                DrawText("ENTER para salvar", 20, 300, 20, GRAY);
                 if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
                 break;
 
