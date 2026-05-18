@@ -1,6 +1,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <raylib.h>
+#include <time.h>
+#include <stdlib.h>
+
+// Avisos
+struct Aviso{
+    char nomeEvento[50];
+    char dataEvento[12];      // dd/mm/aaaa
+    char horaEvento[6];       // hh:mm
+    int tipoAviso;            // 1 = Diário, 2 = Uma única vez
+    char horaAviso[6];        // hh:mm
+    char dataAviso[12];       // dd/mm/aaaa (para aviso único)
+    int ativo;                // 0 = inativo, 1 = ativo
+    int avisado;              // Já foi exibido hoje?
+};
+typedef struct Aviso Aviso;
 
 bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
     Rectangle rec = { (float)x, (float)y, (float)larg, (float)alt };
@@ -16,7 +31,95 @@ bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
     return colidindo && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 }
 
-typedef enum { MENU, ADICIONAR, BUSCAR, EXCLUIR, AVISOS } TelaEstado;
+// Funções para gerenciar avisos
+void SalvarAviso(const char* caminhoAvisos, Aviso aviso) {
+    FILE *arquivo = fopen(caminhoAvisos, "a");
+    if (arquivo) {
+        fprintf(arquivo, "%s|%s|%s|%d|%s|%s|%d|%d\n", 
+                aviso.nomeEvento, aviso.dataEvento, aviso.horaEvento,
+                aviso.tipoAviso, aviso.horaAviso, aviso.dataAviso,
+                aviso.ativo, aviso.avisado);
+        fclose(arquivo);
+    }
+}
+
+void CarregarAvisos(const char* caminhoAvisos, Aviso avisos[], int *totalAvisos) {
+    FILE *arquivo = fopen(caminhoAvisos, "r");
+    *totalAvisos = 0;
+    
+    if (arquivo) {
+        char linha[300];
+        while (fgets(linha, sizeof(linha), arquivo) && *totalAvisos < 50) {
+            sscanf(linha, "%49[^|]|%11[^|]|%5[^|]|%d|%5[^|]|%11[^|]|%d|%d",
+                   avisos[*totalAvisos].nomeEvento,
+                   avisos[*totalAvisos].dataEvento,
+                   avisos[*totalAvisos].horaEvento,
+                   &avisos[*totalAvisos].tipoAviso,
+                   avisos[*totalAvisos].horaAviso,
+                   avisos[*totalAvisos].dataAviso,
+                   &avisos[*totalAvisos].ativo,
+                   &avisos[*totalAvisos].avisado);
+            (*totalAvisos)++;
+        }
+        fclose(arquivo);
+    }
+}
+
+void SalvarTodosAvisos(const char* caminhoAvisos, Aviso avisos[], int totalAvisos) {
+    FILE *arquivo = fopen(caminhoAvisos, "w");
+    if (arquivo) {
+        for (int i = 0; i < totalAvisos; i++) {
+            fprintf(arquivo, "%s|%s|%s|%d|%s|%s|%d|%d\n", 
+                    avisos[i].nomeEvento, avisos[i].dataEvento, avisos[i].horaEvento,
+                    avisos[i].tipoAviso, avisos[i].horaAviso, avisos[i].dataAviso,
+                    avisos[i].ativo, avisos[i].avisado);
+        }
+        fclose(arquivo);
+    }
+}
+
+void GetDataHoraAtual(char *data, char *hora) {
+    time_t agora = time(NULL);
+    struct tm *timeinfo = localtime(&agora);
+    
+    sprintf(data, "%02d/%02d/%04d", 
+            timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
+    sprintf(hora, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
+}
+
+int VerificaAviso(Aviso aviso) {
+    char dataAtual[12], horaAtual[6];
+    GetDataHoraAtual(dataAtual, horaAtual);
+    
+    if (!aviso.ativo) return 0;
+    
+    // Aviso diário
+    if (aviso.tipoAviso == 1) {
+        int horaAvisoInt = atoi(aviso.horaAviso) * 100 + atoi(strchr(aviso.horaAviso, ':') + 1);
+        int horaAtualInt = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
+        
+        // Verifica se está dentro da hora (entre HH:00 e HH:59)
+        if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+            return 1;
+        }
+    }
+    // Aviso em data e hora específica
+    else if (aviso.tipoAviso == 2) {
+        if (strcmp(dataAtual, aviso.dataAviso) == 0) {
+            int horaAvisoInt = atoi(aviso.horaAviso) * 100 + atoi(strchr(aviso.horaAviso, ':') + 1);
+            int horaAtualInt = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
+            
+            // Verifica se está dentro da hora (entre HH:00 e HH:59)
+            if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+                return 1;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+typedef enum { MENU, ADICIONAR, BUSCAR, EXCLUIR, AVISOS, DEFINIR_AVISO, TELA_AVISO } TelaEstado;
 
 int main() {
     const int larguraTela = 800;
@@ -26,6 +129,7 @@ int main() {
 
     TelaEstado telaAtual = MENU;
     char caminho[] = "data_agenda.txt";
+    char caminhoAvisos[] = "avisos.txt";
     char inputEvento[50] = "";
     int contaLetras = 0;
     char dataDigitada[12] = ""; 
@@ -38,10 +142,71 @@ int main() {
     int contadorDataExcluir = 0;
     int focoExcluir = 0;
     char mensagemExcluir[100] = "";
+    
+    // Variáveis para avisos
+    Aviso avisos[50];
+    int totalAvisos = 0;
+    Aviso avisoAtual = {0};
+    int etapaDefinicaoAviso = 0;    
+    char horaAvisoDigitada[6] = "";
+    int contadorHoraAviso = 0;
+    char dataAvisoDigitada[12] = "";
+    int contadorDataAviso = 0;
+    int avisoPendente = -1;          
+    TelaEstado telaAnterior = MENU;  
+    int horaAnterior = -1;           // reset
+
+    
+    CarregarAvisos(caminhoAvisos, avisos, &totalAvisos);
 
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
+
+        // verificar mudança de data e hora
+        char dataAtual[12], horaAtual[6];
+        GetDataHoraAtual(dataAtual, horaAtual);
+        
+        int horaAtualHorario = atoi(horaAtual);
+        if (horaAtualHorario != horaAnterior) {
+            // Mudou a hora, reseta avisos diários apenas uma vez por hora
+            horaAnterior = horaAtualHorario;
+            for (int i = 0; i < totalAvisos; i++) {
+                if (avisos[i].tipoAviso == 1) {
+                    avisos[i].avisado = 0;
+                }
+            }
+        }
+        
+        // Para avisos únicos, marcar inativo após a hora definida passar
+        for (int i = 0; i < totalAvisos; i++) {
+            if (avisos[i].tipoAviso == 2) {
+                int horaAvisoInt = atoi(avisos[i].horaAviso) * 100 + atoi(strchr(avisos[i].horaAviso, ':') + 1);
+                int horaAtualInt = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
+                
+                // Se passou da hora, marca como inativo
+                if (strcmp(dataAtual, avisos[i].dataAviso) == 0 && horaAtualInt >= horaAvisoInt + 100) {
+                    avisos[i].ativo = 0;
+                }
+            }
+        }
+        
+        // Verifica algum aviso para exibir
+        if (avisoPendente == -1) {
+            for (int i = 0; i < totalAvisos; i++) {
+                if (VerificaAviso(avisos[i]) && !avisos[i].avisado) {
+                    avisoPendente = i;
+                    telaAnterior = telaAtual;
+                    avisos[i].avisado = 1;
+                    break;
+                }
+            }
+        }
+        
+        // Se há aviso pendente, mostra a tela de aviso
+        if (avisoPendente != -1 && telaAtual != TELA_AVISO) {
+            telaAtual = TELA_AVISO;
+        }
 
         switch (telaAtual) {
             case MENU:
@@ -153,10 +318,19 @@ int main() {
                     if (agenda) {
                         fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
                         fclose(agenda);
+                        
+                        // Armazena os dados do evento para criar aviso  //a UFG e phoda
+                        strcpy(avisoAtual.nomeEvento, inputEvento);
+                        strcpy(avisoAtual.dataEvento, dataDigitada);
+                        strcpy(avisoAtual.horaEvento, horaDigitada);
+                        avisoAtual.ativo = 1;
+                        avisoAtual.avisado = 0;
+                        
                         inputEvento[0] = '\0'; contaLetras = 0;
                         dataDigitada[0] = '\0'; contadorCaracteres = 0;
                         horaDigitada[0] = '\0'; contadorHora = 0;
                         foco = 0;
+                        telaAtual = MENU;
                     }
                 }
 
@@ -174,7 +348,36 @@ int main() {
                 DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
 
-                DrawText("ENTER para salvar", 20, 300, 20, GRAY);
+                // Mostra botão "DEFINIR AVISO" se todos os campos estão preenchidos
+                if (contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
+                    if (ClickButton(280, 310, 240, 40, "DEFINIR AVISO")) {
+                        // Salva o evento primeiro
+                        FILE *agenda = fopen(caminho, "a");
+                        if (agenda) {
+                            fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
+                            fclose(agenda);
+                        }
+                        
+                        // Armazena os dados do evento para criar aviso
+                        strcpy(avisoAtual.nomeEvento, inputEvento);
+                        strcpy(avisoAtual.dataEvento, dataDigitada);
+                        strcpy(avisoAtual.horaEvento, horaDigitada);
+                        avisoAtual.ativo = 1;
+                        avisoAtual.avisado = 0;
+                        
+                        telaAtual = DEFINIR_AVISO;
+                        etapaDefinicaoAviso = 0;
+                        horaAvisoDigitada[0] = '\0';
+                        contadorHoraAviso = 0;
+                        dataAvisoDigitada[0] = '\0';
+                        contadorDataAviso = 0;
+                    }
+                    DrawText("ou ENTER para salvar sem aviso", 20, 300, 16, GRAY);
+                } else {
+                    DrawText("ENTER para salvar", 20, 300, 20, GRAY);
+                }
+                
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
                 if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
                 break;
 
@@ -242,6 +445,200 @@ int main() {
             case AVISOS:
                 DrawText("AVISOS E LEMBRETES", 20, 20, 25, DARKBLUE);
                 if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
+                break;
+
+            case DEFINIR_AVISO:
+                DrawText("DEFINIR AVISO", 20, 20, 25, DARKBLUE);
+                
+                if (etapaDefinicaoAviso == 0) {
+                    DrawText("Escolha o tipo de aviso:", 20, 80, 20, DARKGRAY);
+                    
+                    if (ClickButton(100, 150, 250, 50, "1. Uma vez por dia")) {
+                        etapaDefinicaoAviso = 1;
+                        horaAvisoDigitada[0] = '\0';
+                        contadorHoraAviso = 0;
+                    }
+                    
+                    if (ClickButton(450, 150, 250, 50, "2. Data e hora específica")) {
+                        etapaDefinicaoAviso = 2;
+                        dataAvisoDigitada[0] = '\0';
+                        contadorDataAviso = 0;
+                    }
+                } 
+                else if (etapaDefinicaoAviso == 1) {
+                    DrawText("Escolha o horário do aviso (hh:mm):", 20, 80, 18, DARKGRAY);
+                    
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        Vector2 mouse = GetMousePosition();
+                        if (CheckCollisionPointRec(mouse, (Rectangle){20, 140, 750, 50})) foco = 1;
+                        else foco = 0;
+                    }
+                    
+                    int teclaAviso = GetCharPressed();
+                    if (foco == 1) {
+                        while (teclaAviso > 0) {
+                            if ((teclaAviso >= '0' && teclaAviso <= '9') && (contadorHoraAviso < 5)) {
+                                if (contadorHoraAviso == 2) {
+                                    horaAvisoDigitada[contadorHoraAviso] = ':';
+                                    contadorHoraAviso++;
+                                }
+                                horaAvisoDigitada[contadorHoraAviso] = (char)teclaAviso;
+                                horaAvisoDigitada[contadorHoraAviso + 1] = '\0';
+                                contadorHoraAviso++;
+                            }
+                            teclaAviso = GetCharPressed();
+                        }
+                        if (IsKeyPressed(KEY_BACKSPACE) && contadorHoraAviso > 0) {
+                            contadorHoraAviso--;
+                            if (horaAvisoDigitada[contadorHoraAviso] == ':') contadorHoraAviso--;
+                            horaAvisoDigitada[contadorHoraAviso] = '\0';
+                        }
+                    }
+                    
+                    DrawRectangleLinesEx((Rectangle){20, 140, 750, 50}, (foco == 1 ? 3 : 1), ORANGE);
+                    DrawText(horaAvisoDigitada[0] == '\0' ? "Digite o horário (hh:mm)" : horaAvisoDigitada, 35, 155, 22, ORANGE);
+                    if (foco == 1) DrawText("|", 35 + MeasureText(horaAvisoDigitada, 22), 155, 22, ORANGE);
+                    
+                    if (contadorHoraAviso == 5) {
+                        if (ClickButton(250, 250, 300, 45, "CONFIRMAR AVISO")) {
+                            strcpy(avisoAtual.horaAviso, horaAvisoDigitada);
+                            avisoAtual.tipoAviso = 1;
+                            SalvarAviso(caminhoAvisos, avisoAtual);
+                            if (totalAvisos < 50) {
+                                avisos[totalAvisos++] = avisoAtual;
+                            }
+                            telaAtual = MENU;
+                            inputEvento[0] = '\0'; contaLetras = 0;
+                            dataDigitada[0] = '\0'; contadorCaracteres = 0;
+                            horaDigitada[0] = '\0'; contadorHora = 0;
+                        }
+                    }
+                }
+                else if (etapaDefinicaoAviso == 2) {
+                    DrawText("Escolha a data do aviso (dd/mm/aaaa):", 20, 80, 18, DARKGRAY);
+                    
+                    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                        Vector2 mouse = GetMousePosition();
+                        if (CheckCollisionPointRec(mouse, (Rectangle){20, 140, 750, 50})) foco = 1;
+                        else if (CheckCollisionPointRec(mouse, (Rectangle){20, 220, 750, 50})) foco = 2;
+                        else foco = 0;
+                    }
+                    
+                    int teclaAviso2 = GetCharPressed();
+                    if (foco == 1) {
+                        while (teclaAviso2 > 0) {
+                            if ((teclaAviso2 >= '0' && teclaAviso2 <= '9') && (contadorDataAviso < 10)) {
+                                if (contadorDataAviso == 2 || contadorDataAviso == 5) {
+                                    dataAvisoDigitada[contadorDataAviso] = '/';
+                                    contadorDataAviso++;
+                                }
+                                dataAvisoDigitada[contadorDataAviso] = (char)teclaAviso2;
+                                dataAvisoDigitada[contadorDataAviso + 1] = '\0';
+                                contadorDataAviso++;
+                            }
+                            teclaAviso2 = GetCharPressed();
+                        }
+                        if (IsKeyPressed(KEY_BACKSPACE) && contadorDataAviso > 0) {
+                            contadorDataAviso--;
+                            if (dataAvisoDigitada[contadorDataAviso] == '/') contadorDataAviso--;
+                            dataAvisoDigitada[contadorDataAviso] = '\0';
+                        }
+                    }
+                    else if (foco == 2) {
+                        while (teclaAviso2 > 0) {
+                            if ((teclaAviso2 >= '0' && teclaAviso2 <= '9') && (contadorHoraAviso < 5)) {
+                                if (contadorHoraAviso == 2) {
+                                    horaAvisoDigitada[contadorHoraAviso] = ':';
+                                    contadorHoraAviso++;
+                                }
+                                horaAvisoDigitada[contadorHoraAviso] = (char)teclaAviso2;
+                                horaAvisoDigitada[contadorHoraAviso + 1] = '\0';
+                                contadorHoraAviso++;
+                            }
+                            teclaAviso2 = GetCharPressed();
+                        }
+                        if (IsKeyPressed(KEY_BACKSPACE) && contadorHoraAviso > 0) {
+                            contadorHoraAviso--;
+                            if (horaAvisoDigitada[contadorHoraAviso] == ':') contadorHoraAviso--;
+                            horaAvisoDigitada[contadorHoraAviso] = '\0';
+                        }
+                    }
+                    
+                    DrawRectangleLinesEx((Rectangle){20, 140, 750, 50}, (foco == 1 ? 3 : 1), GREEN);
+                    DrawText(dataAvisoDigitada[0] == '\0' ? "Digite a data (dd/mm/aaaa)" : dataAvisoDigitada, 35, 155, 22, DARKGREEN);
+                    if (foco == 1) DrawText("|", 35 + MeasureText(dataAvisoDigitada, 22), 155, 22, GREEN);
+                    
+                    DrawRectangleLinesEx((Rectangle){20, 220, 750, 50}, (foco == 2 ? 3 : 1), ORANGE);
+                    DrawText(horaAvisoDigitada[0] == '\0' ? "Digite a hora (hh:mm)" : horaAvisoDigitada, 35, 235, 22, ORANGE);
+                    if (foco == 2) DrawText("|", 35 + MeasureText(horaAvisoDigitada, 22), 235, 22, ORANGE);
+                    
+                    if (contadorDataAviso == 10 && contadorHoraAviso == 5) {
+                        if (ClickButton(250, 320, 300, 45, "CONFIRMAR AVISO")) {
+                            strcpy(avisoAtual.dataAviso, dataAvisoDigitada);
+                            strcpy(avisoAtual.horaAviso, horaAvisoDigitada);
+                            avisoAtual.tipoAviso = 2;
+                            SalvarAviso(caminhoAvisos, avisoAtual);
+                            if (totalAvisos < 50) {
+                                avisos[totalAvisos++] = avisoAtual;
+                            }
+                            telaAtual = MENU;
+                            inputEvento[0] = '\0'; contaLetras = 0;
+                            dataDigitada[0] = '\0'; contadorCaracteres = 0;
+                            horaDigitada[0] = '\0'; contadorHora = 0;
+                        }
+                    }
+                }
+                
+                if (ClickButton(280, 420, 180, 40, "Voltar ao Menu")) {
+                    telaAtual = MENU;
+                    inputEvento[0] = '\0'; contaLetras = 0;
+                    dataDigitada[0] = '\0'; contadorCaracteres = 0;
+                    horaDigitada[0] = '\0'; contadorHora = 0;
+                }
+                break;
+
+            case TELA_AVISO:
+                if (avisoPendente >= 0 && avisoPendente < totalAvisos) {
+                    DrawRectangle(0, 0, 800, 500, (Color){0, 0, 0, 200});
+                    
+                    DrawRectangle(150, 100, 500, 300, RAYWHITE);
+                    DrawRectangleLinesEx((Rectangle){150, 100, 500, 300}, 5, RED);
+                    
+                    DrawText("LEMBRETE!", 280, 130, 35, RED);
+                    
+                    char textoAviso[100];
+                    sprintf(textoAviso, "Evento: %s", avisos[avisoPendente].nomeEvento);
+                    DrawText(textoAviso, 180, 190, 18, DARKGRAY);
+                    
+                    char textoData[100];
+                    sprintf(textoData, "Data: %s às %s", avisos[avisoPendente].dataEvento, avisos[avisoPendente].horaEvento);
+                    DrawText(textoData, 180, 230, 18, DARKGRAY);
+                    
+                    if (avisos[avisoPendente].tipoAviso == 1) {
+                        DrawText("Aviso Diario", 180, 270, 16, BLUE);
+                    } else {
+                        DrawText("Aviso Unico", 180, 270, 16, DARKGREEN);
+                    }
+                    
+                    if (ClickButton(300, 330, 200, 50, "FECHAR") || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
+                        // Para avisos únicos, apaga do arquivo após o disparo
+                        if (avisos[avisoPendente].tipoAviso == 2) {
+                            for (int j = avisoPendente; j < totalAvisos - 1; j++) {
+                                avisos[j] = avisos[j + 1];
+                            }
+                            totalAvisos--;
+                        }
+                        else {
+                            avisos[avisoPendente].avisado = 1;
+                        }
+                        SalvarTodosAvisos(caminhoAvisos, avisos, totalAvisos);
+                        avisoPendente = -1;
+                        telaAtual = MENU;
+                    }
+                } else {
+                    avisoPendente = -1;
+                    telaAtual = MENU;
+                }
                 break;
         }
         EndDrawing();
