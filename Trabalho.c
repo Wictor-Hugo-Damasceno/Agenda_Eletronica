@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 // Avisos
-struct Aviso{
+struct Aviso {
     char nomeEvento[50];
     char dataEvento[12];      // dd/mm/aaaa
     char horaEvento[6];       // hh:mm
@@ -138,10 +138,16 @@ int main() {
     int contadorHora = 0; 
     int foco = 0;
     char resultadoBusca[512] = "Nenhum evento carregado.";
+    
     char dataExcluir[12] = "";
+    char horaExcluir[6] = "";
     int contadorDataExcluir = 0;
+    int contadorHoraExcluir = 0;
     int focoExcluir = 0;
+    int focoExcluirHora = 0;
     char mensagemExcluir[100] = "";
+    char mensagemAviso[50] = "";
+    float tempoAviso = 0.0f;
     
     // Variáveis para avisos
     Aviso avisos[50];
@@ -156,7 +162,6 @@ int main() {
     TelaEstado telaAnterior = MENU;  
     int horaAnterior = -1;           // reset
 
-    
     CarregarAvisos(caminhoAvisos, avisos, &totalAvisos);
 
     while (!WindowShouldClose()) {
@@ -222,7 +227,6 @@ int main() {
                     contadorHora = 0;
                     foco = 0;
                 }
-
                 if (ClickButton(250, 160, 300, 45, "2. Meus Eventos")) {
                     telaAtual = BUSCAR;
                     FILE *ler = fopen(caminho, "r");
@@ -241,9 +245,14 @@ int main() {
                 if (ClickButton(250, 220, 300, 45, "3. EXCLUIR")) {
                     telaAtual = EXCLUIR;
                     dataExcluir[0] = '\0';
+                    horaExcluir[0] = '\0';
                     contadorDataExcluir = 0;
+                    contadorHoraExcluir = 0;
                     focoExcluir = 0;
+                    focoExcluirHora = 0;
                     mensagemExcluir[0] = '\0';
+                    mensagemAviso[0] = '\0';
+                    tempoAviso = 0.0f;
                 }
 
                 if (ClickButton(250, 280, 300, 45, "4. AVISOS")) {
@@ -319,7 +328,6 @@ int main() {
                         fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
                         fclose(agenda);
                         
-                        // Armazena os dados do evento para criar aviso  //a UFG e phoda
                         strcpy(avisoAtual.nomeEvento, inputEvento);
                         strcpy(avisoAtual.dataEvento, dataDigitada);
                         strcpy(avisoAtual.horaEvento, horaDigitada);
@@ -348,17 +356,14 @@ int main() {
                 DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
 
-                // Mostra botão "DEFINIR AVISO" se todos os campos estão preenchidos
                 if (contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
                     if (ClickButton(280, 310, 240, 40, "DEFINIR AVISO")) {
-                        // Salva o evento primeiro
                         FILE *agenda = fopen(caminho, "a");
                         if (agenda) {
                             fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
                             fclose(agenda);
                         }
                         
-                        // Armazena os dados do evento para criar aviso
                         strcpy(avisoAtual.nomeEvento, inputEvento);
                         strcpy(avisoAtual.dataEvento, dataDigitada);
                         strcpy(avisoAtual.horaEvento, horaDigitada);
@@ -389,16 +394,30 @@ int main() {
                 break;
 
             case EXCLUIR:
-                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) {
+                    telaAtual = MENU;
+                }
+
                 DrawText("MODO: EXCLUIR", 20, 20, 25, RED);
-                
+
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     Vector2 mouse = GetMousePosition();
-                    if (CheckCollisionPointRec(mouse, (Rectangle){20, 80, 750, 50})) focoExcluir = 1;
-                    else focoExcluir = 0;
+                    if (CheckCollisionPointRec(mouse, (Rectangle){20, 80, 750, 50})) {
+                        focoExcluir = 1;
+                        focoExcluirHora = 0;
+                    } 
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){20, 140, 750, 50})) {
+                        focoExcluir = 0;
+                        focoExcluirHora = 1;
+                    } 
+                    else {
+                        focoExcluir = 0;
+                        focoExcluirHora = 0;
+                    }
                 }
 
                 int teclaEx = GetCharPressed();
+
                 if (focoExcluir == 1) {
                     while (teclaEx > 0) {
                         if ((teclaEx >= '0' && teclaEx <= '9') && (contadorDataExcluir < 10)) {
@@ -412,6 +431,7 @@ int main() {
                         }
                         teclaEx = GetCharPressed();
                     }
+                    
                     if (IsKeyPressed(KEY_BACKSPACE) && contadorDataExcluir > 0) {
                         contadorDataExcluir--;
                         if (dataExcluir[contadorDataExcluir] == '/') contadorDataExcluir--;
@@ -419,26 +439,76 @@ int main() {
                     }
                 }
 
-                if (IsKeyPressed(KEY_ENTER) && contadorDataExcluir == 10) {
-                    FILE *ler = fopen(caminho, "r");
-                    if (ler) {
-                        FILE *tempFile = fopen("temp.txt", "w");
-                        char linha[150];
-                        int excluido = 0;
-                        while (fgets(linha, sizeof(linha), ler)) {
-                            if (strncmp(linha, "Data: ", 6) == 0 && strstr(linha, dataExcluir)) excluido++;
-                            else fputs(linha, tempFile);
+                if (focoExcluirHora == 1) {
+                    while (teclaEx > 0) {
+                        if ((teclaEx >= '0' && teclaEx <= '9') && (contadorHoraExcluir < 5)) {
+                            if (contadorHoraExcluir == 2) {
+                                horaExcluir[contadorHoraExcluir] = ':';
+                                contadorHoraExcluir++;
+                            }
+                            horaExcluir[contadorHoraExcluir] = (char)teclaEx;
+                            horaExcluir[contadorHoraExcluir + 1] = '\0';
+                            contadorHoraExcluir++;
                         }
-                        fclose(ler); fclose(tempFile);
-                        remove(caminho); rename("temp.txt", caminho);
-                        sprintf(mensagemExcluir, excluido > 0 ? "Excluidos %d eventos!" : "Nada encontrado.", excluido);
-                        dataExcluir[0] = '\0'; contadorDataExcluir = 0;
+                        teclaEx = GetCharPressed();
+                    }
+                    
+                    if (IsKeyPressed(KEY_BACKSPACE) && contadorHoraExcluir > 0) {
+                        contadorHoraExcluir--;
+                        if (horaExcluir[contadorHoraExcluir] == ':') contadorHoraExcluir--;
+                        horaExcluir[contadorHoraExcluir] = '\0';
                     }
                 }
+
                 
                 DrawRectangleLinesEx((Rectangle){20, 80, 750, 50}, (focoExcluir == 1 ? 3 : 1), ORANGE);
-                DrawText(dataExcluir[0] == '\0' ? "Data para excluir (dd/mm/aaaa)" : dataExcluir, 35, 95, 22, DARKPURPLE);
+                DrawText(dataExcluir[0] == '\0' && focoExcluir != 1 ? "Data para excluir (dd/mm/aaaa)" : dataExcluir, 35, 95, 22, DARKPURPLE);
+                if (focoExcluir == 1) DrawText("|", 35 + MeasureText(dataExcluir, 22), 95, 22, ORANGE);
+
+                DrawRectangleLinesEx((Rectangle){20, 140, 750, 50}, (focoExcluirHora == 1 ? 3 : 1), ORANGE);
+                DrawText(horaExcluir[0] == '\0' && focoExcluirHora != 1 ? "Hora para excluir (hh:mm) - Opcional" : horaExcluir, 35, 155, 22, DARKPURPLE);
+                if (focoExcluirHora == 1) DrawText("|", 35 + MeasureText(horaExcluir, 22), 155, 22, ORANGE);
+
                 DrawText(mensagemExcluir, 20, 200, 18, DARKGREEN);
+
+                
+                if (ClickButton(280, 300, 180, 40, "Confirmar")) {
+                    if (contadorDataExcluir < 10) {
+                        strcpy(mensagemAviso, "Erro: Data incompleta!");
+                        tempoAviso = 3.0f;
+                    } else {
+                        FILE *ler = fopen(caminho, "r");
+                        if (ler) {
+                            FILE *tempFile = fopen("temp.txt", "w");
+                            char linha[150];
+                            int excluido = 0;
+                            while (fgets(linha, sizeof(linha), ler)) {
+                                
+                                bool darMatch = false;
+                                if (contadorHoraExcluir == 5) {
+                                    darMatch = (strncmp(linha, "Data: ", 6) == 0 && strstr(linha, dataExcluir) && strstr(linha, horaExcluir));
+                                } else {
+                                    darMatch = (strncmp(linha, "Data: ", 6) == 0 && strstr(linha, dataExcluir));
+                                }
+
+                                if (darMatch) excluido++;
+                                else fputs(linha, tempFile);
+                            }
+                            fclose(ler); fclose(tempFile);
+                            remove(caminho); rename("temp.txt", caminho);
+                            sprintf(mensagemExcluir, excluido > 0 ? "Excluidos %d eventos!" : "Nada encontrado.", excluido);
+                            dataExcluir[0] = '\0'; contadorDataExcluir = 0;
+                            horaExcluir[0] = '\0'; contadorHoraExcluir = 0;
+                        }
+                    }
+                }
+
+                if (tempoAviso > 0) {
+                    DrawRectangle(20, 220, 750, 40, MAROON);
+                    DrawText(mensagemAviso, 35, 230, 20, WHITE);
+                    tempoAviso -= GetFrameTime();
+                }
+
                 if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
                 break;
 
@@ -621,28 +691,25 @@ int main() {
                     }
                     
                     if (ClickButton(300, 330, 200, 50, "FECHAR") || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
-                        // Para avisos únicos, apaga do arquivo após o disparo
+                        // Para avisos únicos, remove do array de memória após disparar
                         if (avisos[avisoPendente].tipoAviso == 2) {
                             for (int j = avisoPendente; j < totalAvisos - 1; j++) {
                                 avisos[j] = avisos[j + 1];
                             }
                             totalAvisos--;
+                            SalvarTodosAvisos(caminhoAvisos, avisos, totalAvisos);
                         }
-                        else {
-                            avisos[avisoPendente].avisado = 1;
-                        }
-                        SalvarTodosAvisos(caminhoAvisos, avisos, totalAvisos);
+                        
+                        telaAtual = telaAnterior; // Retorna para a tela onde o usuário estava
                         avisoPendente = -1;
-                        telaAtual = MENU;
                     }
-                } else {
-                    avisoPendente = -1;
-                    telaAtual = MENU;
                 }
                 break;
         }
+
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
