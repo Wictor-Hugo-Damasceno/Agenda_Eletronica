@@ -17,7 +17,6 @@ O software opera através de uma máquina de estados robusta, permitindo as segu
 
 *   **Linguagem:** C (C99)
 *   **Biblioteca Gráfica:** Raylib
-*   **I/O de Arquivos:** Manipulação via bibliotecas padrão stdio.h e string.h
 
 ## Estrutura do Código
 
@@ -46,5 +45,5 @@ start RODAR.BAT
 
 ### Comando para Compilação (Linux/macOS)
 ```bash
-gcc main.c -o agenda -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+gcc Trabalho.c -o agenda -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
