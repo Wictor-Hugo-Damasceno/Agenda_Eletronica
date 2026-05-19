@@ -10,6 +10,7 @@ struct Aviso {
     char dataEvento[12];      // dd/mm/aaaa
     char horaEvento[6];       // hh:mm
     int tipoAviso;            // 1 = Diário, 2 = Uma única vez
+    int repeticao;            // 0 = nenhum, 1 = semanal, 2 = mensal, 3 = anual
     char horaAviso[6];        // hh:mm
     char dataAviso[12];       // dd/mm/aaaa (para aviso único)
     int ativo;                // 0 = inativo, 1 = ativo
@@ -31,13 +32,22 @@ bool ClickButton(int x, int y, int larg, int alt, const char* texto) {
     return colidindo && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
 }
 
+const char *TextoRepeticao(int repeticao) {
+    switch (repeticao) {
+        case 1: return "Semanal";
+        case 2: return "Mensal";
+        case 3: return "Anual";
+        default: return "Nenhuma";
+    }
+}
+
 // Funções para gerenciar avisos
 void SalvarAviso(const char* caminhoAvisos, Aviso aviso) {
     FILE *arquivo = fopen(caminhoAvisos, "a");
     if (arquivo) {
-        fprintf(arquivo, "%s|%s|%s|%d|%s|%s|%d|%d\n", 
+        fprintf(arquivo, "%s|%s|%s|%d|%d|%s|%s|%d|%d\n", 
                 aviso.nomeEvento, aviso.dataEvento, aviso.horaEvento,
-                aviso.tipoAviso, aviso.horaAviso, aviso.dataAviso,
+                aviso.tipoAviso, aviso.repeticao, aviso.horaAviso, aviso.dataAviso,
                 aviso.ativo, aviso.avisado);
         fclose(arquivo);
     }
@@ -50,15 +60,48 @@ void CarregarAvisos(const char* caminhoAvisos, Aviso avisos[], int *totalAvisos)
     if (arquivo) {
         char linha[300];
         while (fgets(linha, sizeof(linha), arquivo) && *totalAvisos < 50) {
-            sscanf(linha, "%49[^|]|%11[^|]|%5[^|]|%d|%5[^|]|%11[^|]|%d|%d",
-                   avisos[*totalAvisos].nomeEvento,
-                   avisos[*totalAvisos].dataEvento,
-                   avisos[*totalAvisos].horaEvento,
-                   &avisos[*totalAvisos].tipoAviso,
-                   avisos[*totalAvisos].horaAviso,
-                   avisos[*totalAvisos].dataAviso,
-                   &avisos[*totalAvisos].ativo,
-                   &avisos[*totalAvisos].avisado);
+            char *token;
+            char buffer[300];
+            strcpy(buffer, linha);
+            token = strtok(buffer, "|\n");
+            if (!token) continue;
+            strncpy(avisos[*totalAvisos].nomeEvento, token, sizeof(avisos[*totalAvisos].nomeEvento) - 1);
+            avisos[*totalAvisos].nomeEvento[sizeof(avisos[*totalAvisos].nomeEvento)-1] = '\0';
+
+            token = strtok(NULL, "|\n");
+            if (!token) continue;
+            strncpy(avisos[*totalAvisos].dataEvento, token, sizeof(avisos[*totalAvisos].dataEvento) - 1);
+            avisos[*totalAvisos].dataEvento[sizeof(avisos[*totalAvisos].dataEvento)-1] = '\0';
+
+            token = strtok(NULL, "|\n");
+            if (!token) continue;
+            strncpy(avisos[*totalAvisos].horaEvento, token, sizeof(avisos[*totalAvisos].horaEvento) - 1);
+            avisos[*totalAvisos].horaEvento[sizeof(avisos[*totalAvisos].horaEvento)-1] = '\0';
+
+            token = strtok(NULL, "|\n");
+            avisos[*totalAvisos].tipoAviso = token ? atoi(token) : 0;
+
+            token = strtok(NULL, "|\n");
+            avisos[*totalAvisos].repeticao = token ? atoi(token) : 0;
+
+            token = strtok(NULL, "|\n");
+            if (token) {
+                strncpy(avisos[*totalAvisos].horaAviso, token, sizeof(avisos[*totalAvisos].horaAviso) - 1);
+                avisos[*totalAvisos].horaAviso[sizeof(avisos[*totalAvisos].horaAviso)-1] = '\0';
+            } else avisos[*totalAvisos].horaAviso[0] = '\0';
+
+            token = strtok(NULL, "|\n");
+            if (token) {
+                strncpy(avisos[*totalAvisos].dataAviso, token, sizeof(avisos[*totalAvisos].dataAviso) - 1);
+                avisos[*totalAvisos].dataAviso[sizeof(avisos[*totalAvisos].dataAviso)-1] = '\0';
+            } else avisos[*totalAvisos].dataAviso[0] = '\0';
+
+            token = strtok(NULL, "|\n");
+            avisos[*totalAvisos].ativo = token ? atoi(token) : 0;
+
+            token = strtok(NULL, "|\n");
+            avisos[*totalAvisos].avisado = token ? atoi(token) : 0;
+
             (*totalAvisos)++;
         }
         fclose(arquivo);
@@ -69,10 +112,10 @@ void SalvarTodosAvisos(const char* caminhoAvisos, Aviso avisos[], int totalAviso
     FILE *arquivo = fopen(caminhoAvisos, "w");
     if (arquivo) {
         for (int i = 0; i < totalAvisos; i++) {
-            fprintf(arquivo, "%s|%s|%s|%d|%s|%s|%d|%d\n", 
+            fprintf(arquivo, "%s|%s|%s|%d|%d|%s|%s|%d|%d\n", 
                     avisos[i].nomeEvento, avisos[i].dataEvento, avisos[i].horaEvento,
-                    avisos[i].tipoAviso, avisos[i].horaAviso, avisos[i].dataAviso,
-                    avisos[i].ativo, avisos[i].avisado);
+                    avisos[i].tipoAviso, avisos[i].repeticao, avisos[i].horaAviso,
+                    avisos[i].dataAviso, avisos[i].ativo, avisos[i].avisado);
         }
         fclose(arquivo);
     }
@@ -105,13 +148,52 @@ int VerificaAviso(Aviso aviso) {
     }
     // Aviso em data e hora específica
     else if (aviso.tipoAviso == 2) {
-        if (strcmp(dataAtual, aviso.dataAviso) == 0) {
-            int horaAvisoInt = atoi(aviso.horaAviso) * 100 + atoi(strchr(aviso.horaAviso, ':') + 1);
-            int horaAtualInt = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
-            
-            // Verifica se está dentro da hora (entre HH:00 e HH:59)
-            if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
-                return 1;
+        int horaAvisoInt = atoi(aviso.horaAviso) * 100 + atoi(strchr(aviso.horaAviso, ':') + 1);
+        int horaAtualInt = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
+        
+        if (aviso.repeticao == 0) {
+            if (strcmp(dataAtual, aviso.dataAviso) == 0) {
+                if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+                    return 1;
+                }
+            }
+        } else {
+            int diaEvento = 0, mesEvento = 0, anoEvento = 0;
+            sscanf(aviso.dataEvento, "%d/%d/%d", &diaEvento, &mesEvento, &anoEvento);
+
+            time_t agora = time(NULL);
+            struct tm *timeinfo = localtime(&agora);
+            int diaAtualInt = timeinfo->tm_mday;
+            int mesAtualInt = timeinfo->tm_mon + 1;
+            int anoAtualInt = timeinfo->tm_year + 1900;
+            int diaSemanaAtual = timeinfo->tm_wday;
+
+            if (aviso.repeticao == 1) {
+                struct tm dataEvento = {0};
+                dataEvento.tm_mday = diaEvento;
+                dataEvento.tm_mon = mesEvento - 1;
+                dataEvento.tm_year = anoEvento - 1900;
+                mktime(&dataEvento);
+
+                if (diaSemanaAtual == dataEvento.tm_wday) {
+                    if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+                        return 1;
+                    }
+                }
+            }
+            else if (aviso.repeticao == 2) {
+                if (diaAtualInt == diaEvento) {
+                    if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+                        return 1;
+                    }
+                }
+            }
+            else if (aviso.repeticao == 3) {
+                if (diaAtualInt == diaEvento && mesAtualInt == mesEvento) {
+                    if (horaAtualInt >= horaAvisoInt && horaAtualInt < horaAvisoInt + 100) {
+                        return 1;
+                    }
+                }
             }
         }
     }
@@ -137,6 +219,7 @@ int main() {
     int contadorCaracteres = 0; 
     int contadorHora = 0; 
     int foco = 0;
+    int repeticao = 0; // 0 = nenhum, 1 = semanal, 2 = mensal, 3 = anual
     char resultadoBusca[512] = "Nenhum evento carregado.";
     
     char dataExcluir[12] = "";
@@ -226,6 +309,7 @@ int main() {
                     horaDigitada[0] = '\0';
                     contadorHora = 0;
                     foco = 0;
+                    repeticao = 0;
                 }
                 if (ClickButton(250, 160, 300, 45, "2. Meus Eventos")) {
                     telaAtual = BUSCAR;
@@ -268,6 +352,22 @@ int main() {
                     if (CheckCollisionPointRec(mouse, (Rectangle){20, 60, 750, 50})) foco = 1;
                     else if (CheckCollisionPointRec(mouse, (Rectangle){20, 140, 750, 50})) foco = 2;
                     else if (CheckCollisionPointRec(mouse, (Rectangle){20, 220, 750, 50})) foco = 3;
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){20, 320, 180, 40})) {
+                        repeticao = 0;
+                        foco = 0;
+                    }
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){220, 320, 180, 40})) {
+                        repeticao = 1;
+                        foco = 0;
+                    }
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){420, 320, 180, 40})) {
+                        repeticao = 2;
+                        foco = 0;
+                    }
+                    else if (CheckCollisionPointRec(mouse, (Rectangle){620, 320, 180, 40})) {
+                        repeticao = 3;
+                        foco = 0;
+                    }
                     else foco = 0;
                 }
 
@@ -323,14 +423,20 @@ int main() {
                 }
 
                 if (IsKeyPressed(KEY_ENTER) && contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
+                    char repeticaoTexto[20] = "";
+                    if (repeticao == 1) strcpy(repeticaoTexto, " [Semanal]");
+                    else if (repeticao == 2) strcpy(repeticaoTexto, " [Mensal]");
+                    else if (repeticao == 3) strcpy(repeticaoTexto, " [Anual]");
+
                     FILE *agenda = fopen(caminho, "a");
                     if (agenda) {
-                        fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
+                        fprintf(agenda, "Data: %s às %s - %s%s\n", dataDigitada, horaDigitada, inputEvento, repeticaoTexto);
                         fclose(agenda);
                         
                         strcpy(avisoAtual.nomeEvento, inputEvento);
                         strcpy(avisoAtual.dataEvento, dataDigitada);
                         strcpy(avisoAtual.horaEvento, horaDigitada);
+                        avisoAtual.repeticao = repeticao;
                         avisoAtual.ativo = 1;
                         avisoAtual.avisado = 0;
                         
@@ -338,6 +444,7 @@ int main() {
                         dataDigitada[0] = '\0'; contadorCaracteres = 0;
                         horaDigitada[0] = '\0'; contadorHora = 0;
                         foco = 0;
+                        repeticao = 0;
                         telaAtual = MENU;
                     }
                 }
@@ -356,17 +463,33 @@ int main() {
                 DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
 
+                DrawText("Repetição do evento:", 20, 290, 22, DARKGRAY);
+                DrawRectangleLinesEx((Rectangle){20, 320, 180, 40}, (repeticao == 0 ? 3 : 1), DARKGRAY);
+                DrawText("Nenhuma", 20 + (180 - MeasureText("Nenhuma", 20))/2, 334, 20, BLACK);
+                DrawRectangleLinesEx((Rectangle){220, 320, 180, 40}, (repeticao == 1 ? 3 : 1), DARKGRAY);
+                DrawText("Semanal", 220 + (180 - MeasureText("Semanal", 20))/2, 334, 20, BLACK);
+                DrawRectangleLinesEx((Rectangle){420, 320, 180, 40}, (repeticao == 2 ? 3 : 1), DARKGRAY);
+                DrawText("Mensal", 420 + (180 - MeasureText("Mensal", 20))/2, 334, 20, BLACK);
+                DrawRectangleLinesEx((Rectangle){620, 320, 180, 40}, (repeticao == 3 ? 3 : 1), DARKGRAY);
+                DrawText("Anual", 620 + (180 - MeasureText("Anual", 20))/2, 334, 20, BLACK);
+
                 if (contaLetras > 0 && contadorCaracteres == 10 && contadorHora == 5) {
                     if (ClickButton(280, 310, 240, 40, "DEFINIR AVISO")) {
+                        char repeticaoTexto[20] = "";
+                        if (repeticao == 1) strcpy(repeticaoTexto, " [Semanal]");
+                        else if (repeticao == 2) strcpy(repeticaoTexto, " [Mensal]");
+                        else if (repeticao == 3) strcpy(repeticaoTexto, " [Anual]");
+
                         FILE *agenda = fopen(caminho, "a");
                         if (agenda) {
-                            fprintf(agenda, "Data: %s às %s - %s\n", dataDigitada, horaDigitada, inputEvento);
+                            fprintf(agenda, "Data: %s às %s - %s%s\n", dataDigitada, horaDigitada, inputEvento, repeticaoTexto);
                             fclose(agenda);
                         }
                         
                         strcpy(avisoAtual.nomeEvento, inputEvento);
                         strcpy(avisoAtual.dataEvento, dataDigitada);
                         strcpy(avisoAtual.horaEvento, horaDigitada);
+                        avisoAtual.repeticao = repeticao;
                         avisoAtual.ativo = 1;
                         avisoAtual.avisado = 0;
                         
@@ -382,8 +505,14 @@ int main() {
                     DrawText("ENTER para salvar", 20, 300, 20, GRAY);
                 }
                 
-                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) telaAtual = MENU;
-                if (IsKeyPressed(KEY_ESCAPE)) telaAtual = MENU;
+                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) {
+                    telaAtual = MENU;
+                    repeticao = 0;
+                }
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    telaAtual = MENU;
+                    repeticao = 0;
+                }
                 break;
 
             case BUSCAR:
@@ -664,6 +793,7 @@ int main() {
                     inputEvento[0] = '\0'; contaLetras = 0;
                     dataDigitada[0] = '\0'; contadorCaracteres = 0;
                     horaDigitada[0] = '\0'; contadorHora = 0;
+                    repeticao = 0;
                 }
                 break;
 
@@ -688,6 +818,12 @@ int main() {
                         DrawText("Aviso Diario", 180, 270, 16, BLUE);
                     } else {
                         DrawText("Aviso Unico", 180, 270, 16, DARKGREEN);
+                    }
+                    
+                    if (avisos[avisoPendente].repeticao != 0) {
+                        char textoRepeticao[50];
+                        sprintf(textoRepeticao, "Repetição: %s", TextoRepeticao(avisos[avisoPendente].repeticao));
+                        DrawText(textoRepeticao, 180, 295, 16, DARKGREEN);
                     }
                     
                     if (ClickButton(300, 330, 200, 50, "FECHAR") || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
