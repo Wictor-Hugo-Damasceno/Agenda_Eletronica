@@ -374,7 +374,6 @@ int main() {
                 break;
 
             case ADICIONAR:
-                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) tela = MENU;
 
                 // detecta clique nos campos
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -502,7 +501,7 @@ int main() {
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
 
                 // botoes de repeticao
-                DrawText("Repetição do evento:", 20, 290, 22, DARKGRAY);
+                DrawText("Repetição do evento:", 20, 280, 22, DARKGRAY);
                 DrawRectangleLinesEx((Rectangle){20, 320, 180, 40}, (rep == 0 ? 3 : 1), DARKGRAY);
                 DrawText("Nenhuma", 20 + (180 - MeasureText("Nenhuma", 20))/2, 334, 20, BLACK);
                 DrawRectangleLinesEx((Rectangle){220, 320, 180, 40}, (rep == 1 ? 3 : 1), DARKGRAY);
@@ -514,7 +513,7 @@ int main() {
 
                 // botao de definir aviso (so aparece se preencheu tudo)
                 if (contaLetras > 0 && contData == 10 && contHora == 5) {
-                    if (ClickButton(280, 310, 240, 40, "DEFINIR AVISO")) {
+                    if (ClickButton(260, 370, 240, 40, "DEFINIR AVISO")) {
                         char repTxt[20] = "";
                         if (rep == 1) strcpy(repTxt, " [Semanal]");
                         else if (rep == 2) strcpy(repTxt, " [Mensal]");
@@ -545,7 +544,7 @@ int main() {
                     DrawText("ENTER para salvar", 20, 360, 20, GRAY);
                 }
                 
-                if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) {
+                if (ClickButton(280, 420, 180, 40, "Voltar ao Menu")) {
                     tela = MENU;
                     rep = 0;
                 }
