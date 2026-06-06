@@ -43,6 +43,138 @@ const char *TextoRepeticao(int rep) {
     }
 }
 
+static int ParseDataHora(const char *data, const char *hora, struct tm *out) {
+    int dia = 0, mes = 0, ano = 0;
+    int h = 0, min = 0;
+
+    if (sscanf(data, "%d/%d/%d", &dia, &mes, &ano) != 3) return 0;
+    if (sscanf(hora, "%d:%d", &h, &min) != 2) return 0;
+
+    memset(out, 0, sizeof(*out));
+    out->tm_mday = dia;
+    out->tm_mon = mes - 1;
+    out->tm_year = ano - 1900;
+    out->tm_hour = h;
+    out->tm_min = min;
+    out->tm_isdst = -1;
+
+    return mktime(out) != -1;
+}
+
+static int EventoJaPassou(const char *data, const char *hora) {
+    struct tm evento = {0};
+    time_t agora = time(NULL);
+
+    if (!ParseDataHora(data, hora, &evento)) return 0;
+
+    return difftime(agora, mktime(&evento)) >= 0;
+}
+
+static void ProximaDataRepeticao(const char *dataOrig, int repeticao, char *novaData) {
+    struct tm evento = {0};
+    ParseDataHora(dataOrig, "00:00", &evento);
+
+    if (repeticao == 1) {
+        evento.tm_mday += 7;
+    } else if (repeticao == 2) {
+        evento.tm_mon += 1;
+    } else if (repeticao == 3) {
+        evento.tm_year += 1;
+    }
+
+    mktime(&evento);
+    sprintf(novaData, "%02d/%02d/%04d", evento.tm_mday, evento.tm_mon + 1, evento.tm_year + 1900);
+}
+
+static int ExtrairRepeticaoDaLinha(const char *linha) {
+    if (strstr(linha, "[Semanal]")) return 1;
+    if (strstr(linha, "[Mensal]")) return 2;
+    if (strstr(linha, "[Anual]")) return 3;
+    return 0;
+}
+
+static void AtualizarEventosRepetidos(const char *path) {
+    FILE *arq = fopen(path, "r");
+    if (!arq) return;
+
+    FILE *temp = fopen("temp_agenda.txt", "w");
+    if (!temp) {
+        fclose(arq);
+        return;
+    }
+
+    char linha[200];
+    while (fgets(linha, sizeof(linha), arq)) {
+        if (strncmp(linha, "Data: ", 6) != 0) {
+            fputs(linha, temp);
+            continue;
+        }
+
+        char *pData = strstr(linha, "Data: ");
+        char *pAte = strstr(linha, " às ");
+        char *pNome = strstr(linha, " - ");
+
+        if (!pData || !pAte || !pNome || pAte <= pData || pNome <= pAte) {
+            fputs(linha, temp);
+            continue;
+        }
+
+        char dataEvento[12];
+        char horaEvento[6];
+        char nomeEvento[60];
+        int repeticao = ExtrairRepeticaoDaLinha(linha);
+
+        size_t tamData = (size_t)(pAte - (pData + 6));
+        size_t tamHora = (size_t)(pNome - (pAte + 5));
+
+        if (tamData >= sizeof(dataEvento) || tamHora >= sizeof(horaEvento)) {
+            fputs(linha, temp);
+            continue;
+        }
+
+        strncpy(dataEvento, pData + 6, tamData);
+        dataEvento[tamData] = '\0';
+
+        strncpy(horaEvento, pAte + 5, tamHora);
+        horaEvento[tamHora] = '\0';
+
+        char *textoNome = pNome + 3;
+        char *marcaRepeticao = strstr(textoNome, " [");
+        size_t tamNome = marcaRepeticao ? (size_t)(marcaRepeticao - textoNome) : strlen(textoNome);
+
+        if (tamNome >= sizeof(nomeEvento)) {
+            fputs(linha, temp);
+            continue;
+        }
+
+        strncpy(nomeEvento, textoNome, tamNome);
+        nomeEvento[tamNome] = '\0';
+
+        nomeEvento[strcspn(nomeEvento, "\r\n")] = '\0';
+
+        if (repeticao > 0 && EventoJaPassou(dataEvento, horaEvento)) {
+            char novaData[12];
+            ProximaDataRepeticao(dataEvento, repeticao, novaData);
+
+            char linhaNova[200];
+            snprintf(linhaNova, sizeof(linhaNova), "Data: %s às %s - %s", novaData, horaEvento, nomeEvento);
+            if (repeticao == 1) strcat(linhaNova, " [Semanal]");
+            else if (repeticao == 2) strcat(linhaNova, " [Mensal]");
+            else if (repeticao == 3) strcat(linhaNova, " [Anual]");
+            strcat(linhaNova, "\n");
+
+            fputs(linhaNova, temp);
+        } else {
+            fputs(linha, temp);
+        }
+    }
+
+    fclose(arq);
+    fclose(temp);
+    remove(path);
+    rename("temp_agenda.txt", path);
+}
+
 // salva um aviso no arquivo
 void SalvarAviso(const char* path, Aviso av) {
     FILE *arq = fopen(path, "a");
@@ -342,6 +474,7 @@ int main() {
                 
                 if (ClickButton(250, 160, 300, 45, "2. Meus Eventos")) {
                     tela = BUSCAR;
+                    AtualizarEventosRepetidos(caminho);
                     FILE *f = fopen(caminho, "r");
                     if (f) {
                         char linha[150];
