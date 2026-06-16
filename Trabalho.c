@@ -4,7 +4,7 @@
 #include <time.h>
 #include <stdlib.h>
 
-// estrutura pra guardar os avisos
+
 struct Aviso {
     char nomeEvento[50];
     char dataEvento[12];      // dd/mm/aaaa
@@ -27,7 +27,7 @@ bool ClickButton(int x, int y, int larg, int alt, const char* txt) {
     DrawRectangleRec(rec, hover ? LIGHTGRAY : GRAY);
     DrawRectangleLinesEx(rec, 2, DARKGRAY);
     
-    // centraliza o texto no botao
+   
     int txtW = MeasureText(txt, 20);
     DrawText(txt, x + (larg/2 - txtW/2), y + (alt/2 - 10), 20, BLACK);
     
@@ -175,7 +175,6 @@ static void AtualizarEventosRepetidos(const char *path) {
     rename("temp_agenda.txt", path);
 }
 
-// salva um aviso no arquivo
 void SalvarAviso(const char* path, Aviso av) {
     FILE *arq = fopen(path, "a");
     if (arq) {
@@ -187,7 +186,6 @@ void SalvarAviso(const char* path, Aviso av) {
     }
 }
 
-// carrega todos os avisos do arquivo
 void CarregarAvisos(const char* path, Aviso avisos[], int *total) {
     FILE *arq = fopen(path, "r");
     *total = 0;
@@ -248,7 +246,6 @@ void CarregarAvisos(const char* path, Aviso avisos[], int *total) {
     }
 }
 
-// reescreve todo o arquivo de avisos (usado pra deletar)
 void SalvarTodosAvisos(const char* path, Aviso avisos[], int total) {
     FILE *arq = fopen(path, "w");
     if (arq) {
@@ -262,7 +259,6 @@ void SalvarTodosAvisos(const char* path, Aviso avisos[], int total) {
     }
 }
 
-// pega data e hora atual do sistema
 void GetDataHoraAtual(char *data, char *hora) {
     time_t agora = time(NULL);
     struct tm *t = localtime(&agora);
@@ -271,30 +267,25 @@ void GetDataHoraAtual(char *data, char *hora) {
     sprintf(hora, "%02d:%02d", t->tm_hour, t->tm_min);
 }
 
-// verifica se ta na hora de mostrar o aviso
 int VerificaAviso(Aviso av) {
     char dataAtual[12], horaAtual[6];
     GetDataHoraAtual(dataAtual, horaAtual);
     
     if (!av.ativo) return 0;
     
-    // aviso diario - so checa a hora
     if (av.tipoAviso == 1) {
         int hAviso = atoi(av.horaAviso) * 100 + atoi(strchr(av.horaAviso, ':') + 1);
         int hAtual = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
         
-        // janela de 1 hora pra mostrar
         if (hAtual >= hAviso && hAtual < hAviso + 100) {
             return 1;
         }
     }
-    // aviso com data especifica
     else if (av.tipoAviso == 2) {
         int hAviso = atoi(av.horaAviso) * 100 + atoi(strchr(av.horaAviso, ':') + 1);
         int hAtual = atoi(horaAtual) * 100 + atoi(strchr(horaAtual, ':') + 1);
         
         if (av.repeticao == 0) {
-            // sem repeticao - data exata
             if (strcmp(dataAtual, av.dataAviso) == 0) {
                 if (hAtual >= hAviso && hAtual < hAviso + 100) {
                     return 1;
@@ -334,7 +325,6 @@ int VerificaAviso(Aviso av) {
                 }
             }
             else if (av.repeticao == 3) {
-                // anual - mesmo dia e mes
                 if (diaHoje == diaEv && mesHoje == mesEv) {
                     if (hAtual >= hAviso && hAtual < hAviso + 100) {
                         return 1;
@@ -347,7 +337,7 @@ int VerificaAviso(Aviso av) {
     return 0;
 }
 
-// estados da interface
+// estados da tela
 typedef enum { 
     MENU, 
     ADICIONAR, 
@@ -368,7 +358,6 @@ int main() {
     char caminho[] = "data_agenda.txt";
     char caminhoAvisos[] = "avisos.txt";
     
-    // variaveis do formulario de adicionar
     char inputEvento[50] = "";
     int contaLetras = 0;
     char dataDigitada[12] = ""; 
@@ -380,8 +369,7 @@ int main() {
     
     char resultadoBusca[512] = "Nenhum evento carregado.";
     
-    // variaveis da tela de excluir
-    // acho que da para diminuir essas variaveis usando uma struct, mas ta bom por hora
+    // variaveis da tela de excliur v3.0
     char dataExcluir[12] = "";
     char horaExcluir[6] = "";
     int contDataEx = 0;
@@ -407,7 +395,6 @@ int main() {
 
     CarregarAvisos(caminhoAvisos, avisos, &totalAvisos);
 
-    // loop principal
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -419,7 +406,6 @@ int main() {
         int horaAtualInt = atoi(horaAtual);
         if (horaAtualInt != horaAnterior) {
             horaAnterior = horaAtualInt;
-            // reseta flag de avisado pros avisos diarios
             for (int i = 0; i < totalAvisos; i++) {
                 if (avisos[i].tipoAviso == 1) {
                     avisos[i].avisado = 0;
@@ -455,7 +441,6 @@ int main() {
             tela = TELA_AVISO;
         }
 
-        // desenha a tela atual
         switch (tela) {
             case MENU:
                 DrawText("SISTEMA DE AGENDA", 260, 40, 30, DARKGRAY);
@@ -508,7 +493,6 @@ int main() {
 
             case ADICIONAR:
 
-                // detecta clique nos campos
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     Vector2 m = GetMousePosition();
                     if (CheckCollisionPointRec(m, (Rectangle){20, 60, 750, 50})) foco = 1;
@@ -533,7 +517,6 @@ int main() {
                     else foco = 0;
                 }
 
-                // input de texto
                 int tecla = GetCharPressed();
                 if (foco == 1) {
                     while (tecla > 0) {
@@ -549,7 +532,6 @@ int main() {
                     }
                 } 
                 else if (foco == 2) {
-                    // campo de data - formata automatico
                     while (tecla > 0) {
                         if ((tecla >= '0' && tecla <= '9') && (contData < 10)) {
                             if (contData == 2 || contData == 5) {
@@ -589,7 +571,6 @@ int main() {
                     }
                 }
 
-                // salva com enter, n sei se é melhor enter ou um botão, ou os dois(excluir isso)
                 if (IsKeyPressed(KEY_ENTER) && contaLetras > 0 && contData == 10 && contHora == 5) {
                     char repTxt[20] = "";
                     if (rep == 1) strcpy(repTxt, " [Semanal]");
@@ -618,7 +599,6 @@ int main() {
                     }
                 }
 
-                // desenha interface
                 DrawText("MODO: ADICIONAR", 20, 20, 25, MAROON);
                 
                 DrawRectangleLinesEx((Rectangle){20, 60, 750, 50}, (foco == 1 ? 3 : 1), BLUE);
@@ -633,7 +613,6 @@ int main() {
                 DrawText(horaDigitada[0] == '\0' && foco != 3 ? "Clique aqui para a Hora (hh:mm)" : horaDigitada, 35, 235, 22, ORANGE);
                 if (foco == 3) DrawText("|", 35 + MeasureText(horaDigitada, 22), 235, 22, ORANGE);
 
-                // botoes de repeticao
                 DrawText("Repetição do evento:", 20, 280, 22, DARKGRAY);
                 DrawRectangleLinesEx((Rectangle){20, 320, 180, 40}, (rep == 0 ? 3 : 1), DARKGRAY);
                 DrawText("Nenhuma", 20 + (180 - MeasureText("Nenhuma", 20))/2, 334, 20, BLACK);
@@ -644,7 +623,6 @@ int main() {
                 DrawRectangleLinesEx((Rectangle){620, 320, 180, 40}, (rep == 3 ? 3 : 1), DARKGRAY);
                 DrawText("Anual", 620 + (180 - MeasureText("Anual", 20))/2, 334, 20, BLACK);
 
-                // botao de definir aviso (so aparece se preencheu tudo)
                 if (contaLetras > 0 && contData == 10 && contHora == 5) {
                     if (ClickButton(260, 370, 240, 40, "DEFINIR AVISO")) {
                         char repTxt[20] = "";
@@ -701,7 +679,6 @@ int main() {
 
                 DrawText("MODO: EXCLUIR", 20, 20, 25, RED);
 
-                // foco nos campos
                 if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
                     Vector2 m = GetMousePosition();
                     if (CheckCollisionPointRec(m, (Rectangle){20, 80, 750, 50})) {
@@ -762,7 +739,6 @@ int main() {
                     }
                 }
 
-                // desenha campos(excluir)
                 DrawRectangleLinesEx((Rectangle){20, 80, 750, 50}, (focoEx == 1 ? 3 : 1), ORANGE);
                 DrawText(dataExcluir[0] == '\0' && focoEx != 1 ? "Data para excluir (dd/mm/aaaa)" : dataExcluir, 35, 95, 22, DARKPURPLE);
                 if (focoEx == 1) DrawText("|", 35 + MeasureText(dataExcluir, 22), 95, 22, ORANGE);
@@ -773,7 +749,6 @@ int main() {
 
                 DrawText(msgExcluir, 20, 200, 18, DARKGREEN);
 
-                // botao confirmar(exluir)
                 if (ClickButton(280, 300, 180, 40, "Confirmar")) {
                     if (contDataEx < 10) {
                         strcpy(msgAviso, "Erro: Data incompleta!");
@@ -821,7 +796,6 @@ int main() {
 
             case AVISOS:
                 DrawText("AVISOS E LEMBRETES", 20, 20, 25, DARKBLUE);
-                // TODO: listar avisos ativos aqui
                 if (ClickButton(280, 360, 180, 40, "Voltar ao Menu")) tela = MENU;
                 break;
 
@@ -829,7 +803,6 @@ int main() {
                 DrawText("DEFINIR AVISO", 20, 20, 25, DARKBLUE);
                 
                 if (etapaAviso == 0) {
-                    // escolhe tipo
                     DrawText("Escolha o tipo de aviso:", 20, 80, 20, DARKGRAY);
                     
                     if (ClickButton(100, 150, 250, 50, "1. Uma vez por dia")) {
@@ -1007,9 +980,7 @@ int main() {
                         DrawText(txt, 180, 295, 16, DARKGREEN);
                     }
                     
-                    // fecha o popup
                     if (ClickButton(300, 330, 200, 50, "FECHAR") || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
-                        // remove aviso unico depois de mostrar
                         if (avisos[avisoMostrando].tipoAviso == 2) {
                             for (int j = avisoMostrando; j < totalAvisos - 1; j++) {
                                 avisos[j] = avisos[j + 1];
@@ -1024,10 +995,6 @@ int main() {
                 }
                 break;
         }
-        // Depois otimizar um pouco pra não desenhar tudo toda vez, mas tá ok por enquanto
-        // Excluir ta funcional finalmente, só falta listar os avisos na tela de avisos e talvez permitir editar eles depois
-        // Antes de entregar para o professor lembrar de excluir os comentarios 
-        // monitor falou para melhorar o buscar, mas n sei como melhorar muito, talvez permitir filtrar por data ou algo assim, mas n sei se da tempo de fazer isso
         EndDrawing();
     }
 
